@@ -8,14 +8,14 @@ fi
 
 PASTA="$1"
 
-# Cabeçalho CSV
-echo "arquivo,inputs,outputs,gates,levels,energy"
+# Cabeçalho CSV (adicionados memory e tempo)
+echo "arquivo,inputs,outputs,gates,levels,energy,memory(MiB),time(s)"
 
 # Itera sobre arquivos .v na pasta
 for arquivo in "$PASTA"/*.v; do
     nome_base=$(basename "$arquivo" .v)
 
-    # Executa o primeiro comando e aguarda término
+    # Executa bit-combs e captura toda a saída
     saida1=$(./bit-combs -o temp.output "$arquivo")
     if [ $? -ne 0 ]; then
         continue
@@ -27,10 +27,15 @@ for arquivo in "$PASTA"/*.v; do
     gates=$(echo "$saida1" | grep -oP 'gates\s*=\s*\K[0-9]+')
     levels=$(echo "$saida1" | grep -oP 'levels\s*=\s*\K[0-9]+')
 
-    # Executa join-combs e extrai o último valor de energy diretamente do pipe
-    energy=$(./join-combs temp.output | grep -oP 'energy\s*=\s*\K[0-9.]+' | tail -n 1)
+    # Extrai energia via join-combs
+    energy=$(./join-combs temp.output | grep -oP 'energy\s*=\s*\K[0-9.]+' | tail -n1)
 
-    # Imprime linha CSV
-    echo "$nome_base,$inputs,$outputs,$gates,$levels,$energy"
+    # Extrai uso de memória (valor numérico antes de "MiB")
+    memory=$(echo "$saida1" | grep -oP 'memory\s*=\s*\K[0-9.]+(?=\s*MiB)')
+
+    # Extrai tempo de simulação (última ocorrência de time = ...s)
+    tempo=$(echo "$saida1" | grep -oP 'time\s*=\s*\K[0-9.]+(?=s)' | tail -n1)
+
+    # Imprime linha CSV com todos os campos
+    echo "$nome_base,$inputs,$outputs,$gates,$levels,$energy,$memory,$tempo"
 done
-
